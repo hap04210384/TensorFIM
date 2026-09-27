@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Run the 13 paper configurations on both engines (Table IV / V, Fig. 3/5).
+"""Run the 14 paper configurations on both engines (Table IV / V, Fig. 3/5).
 
 Usage:  python scripts/run_all_configs.py [--reps 5]
 Requires: built (or prebuilt) engines in code/engine/run/, datasets prepared
@@ -19,6 +19,7 @@ CONFIGS = [
     ("TCGA_BRCA_stripped.txt", 0.7), ("TCGA_BRCA_stripped.txt", 0.65),
     ("accidents.txt", 0.5), ("accidents_x4.txt", 0.4), ("accidents_x8.txt", 0.4),
     ("kosarak.dat", 0.02), ("pumsb_x256.txt", 0.8), ("webdocs.dat", 0.08),
+    ("chainstore.txt", 0.002),
 ]
 
 COMP = re.compile(r"computation_time\(s\):\s*([\d.]+)")

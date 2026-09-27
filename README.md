@@ -22,13 +22,15 @@ package re-checks that identity against archived gold references.
 
 ```
 code/
-  microbench/   bmma_bench.cu — isolated BMMA vs. bitmap-loop microbenchmark (Table I/II, Fig. 2)
+  microbench/   bmma_bench.cu — isolated BMMA vs. bitmap-loop microbenchmark (Table I, Fig. 2)
   batch_proto/  batch_proto.cu — wave-batching prototype on synthetic data (Section V-C)
   engine/       kernel_bitmap.cu (baseline) + kernel_bmma.cu (TensorFIM), build scripts
 scripts/
-  run_all_configs.py       13 dataset-threshold configurations, both engines (Table IV/V, Fig. 3/5)
-  run_ablation.py          wave-size sweep + split-k on/off (Table VI)
-  run_threshold_sweep.py   accidents/kosarak/connect across thresholds (Fig. 6)
+  run_all_configs.py       14 dataset-threshold configurations, both engines (Tables IV/V, Figs. 3/5)
+  download_chainstore.py   fetch chain-store from the public SPMF dataset library
+  download_webdocs.py      fetch webdocs from the release-asset mirror (FIMI original offline)
+  run_ablation.py          wave-size sweep + split-k on/off (Table VII)
+  run_threshold_sweep.py   accidents/kosarak/connect across thresholds (Fig. 7)
   verify_all.py            set-identity check of all produced results vs. gold
 data/
   small/          the seven small-to-mid FIMI benchmarks
@@ -47,10 +49,11 @@ portable/       self-contained cross-platform validation bundle (Section V-K):
 # 1. build the engines (or use the prebuilt binaries in code/engine/run/)
 cd code/engine && ./build.bat          # nvcc -O3 -arch=native; MSVC + CUDA on Windows
 
-# 2. microbenchmark: BMMA counting throughput (Table I/II, Fig. 2)
+# 2. microbenchmark: BMMA counting throughput (Table I, Fig. 2)
 cd ../microbench && ./build.bat && ./bmma_bench.exe
 
-# 3. end-to-end: all 13 configurations, 5 interleaved reps, set-verified
+# 3. end-to-end: all 14 configurations, 5 interleaved reps, set-verified
+#    (chain-store and webdocs first: python scripts/download_chainstore.py / download_webdocs.py)
 cd ../.. && python scripts/run_all_configs.py
 
 # 4. ablation and threshold sweep
@@ -68,14 +71,14 @@ Timings vary with hardware; the reference medians (RTX 3060 Ti) are below.
 
 | Paper claim | Command | Reference (RTX 3060 Ti) |
 |---|---|---|
-| BMMA sustains 56.2 Tbit-op/s, 25.8x geomean over bitmap loop | `code/microbench/bmma_bench.exe` | Table I/II, Fig. 2 |
-| Prototype end-to-end 31.0x, identical output | `code/batch_proto/batch_proto.exe` | Section V-C |
-| End-to-end speedups 1.4x–12.4x across 13 configurations | `scripts/run_all_configs.py` | Table IV, Fig. 3 |
+| BMMA sustains 56.2 Tbit-op/s, 25.8x geomean over bitmap loop | `code/microbench/bmma_bench.exe` | Table I, Fig. 2 |
+| Prototype end-to-end 31.0x, identical output | `code/batch_proto/batch_proto.exe` | Section V-C, Table II |
+| End-to-end wins on 13 of 14 configurations, up to 12.4x vs the bitmap baseline | `scripts/run_all_configs.py` | Tables IV/V, Figs. 3/5 |
 | Bit-exact output on all configurations | every script + `verify_all.py` | Table III |
 | Phase breakdown: BMMA dominates post-compaction | engine logs (`BMMA phase ms:` line) | Fig. 4, Section V-F |
 | Amdahl ceiling 25.2x on pumsb_x256 | cost model from phase logs | Section V-F |
-| Split-k off = 24.9x slower on pumsb_x256 | `scripts/run_ablation.py` | Table VI |
-| Threshold-sensitivity crossover | `scripts/run_threshold_sweep.py` | Fig. 6 |
+| Split-k off = 24.9x slower on pumsb_x256 | `scripts/run_ablation.py` | Table VII |
+| Threshold-sensitivity crossover | `scripts/run_threshold_sweep.py` | Fig. 7 |
 
 ## Notes
 
@@ -84,7 +87,7 @@ Timings vary with hardware; the reference medians (RTX 3060 Ti) are below.
 - pumsb_x256 and webdocs are large (4.3 GB / 1.5 GB); see `data/DOWNLOAD.md`.
   All other configurations run in seconds.
 - Baselines: GMiner (https://github.com/opensourcesavvy/GMiner; see paper
-  ref [7]) and FPmax*
-  (paper ref [18]) are third-party codes and not redistributed here; Table V's
+  ref [8]) and FPmax*
+  (paper ref [44]) are third-party codes and not redistributed here; Table V's
   baseline columns were measured on the same host with the protocols described
   in Section V-A.
