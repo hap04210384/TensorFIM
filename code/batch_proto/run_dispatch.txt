@@ -1,0 +1,16 @@
+Batch evaluation prototype: N=8388608 tx, d=512, minsup=12582 (0.15%), mode=dispatch
+data gen: 1.2 s (80 planted patterns)
+F1: 248 frequent items
+L2: prefixes=  248 batches=1 kernel=BMMA-naive  mask=    2.0 ms eval=    21.9 ms -> found=   585
+L3: prefixes=  585 batches=1 kernel=BMMA-smem   mask=    3.4 ms eval=    75.2 ms -> found=   587
+L4: prefixes=  587 batches=1 kernel=BMMA-smem   mask=    3.9 ms eval=    74.8 ms -> found=   350
+L5: prefixes=  350 batches=1 kernel=BMMA-naive  mask=    1.9 ms eval=    40.8 ms -> found=   117
+L6: prefixes=  117 batches=1 kernel=BMMA-naive  mask=    1.2 ms eval=    21.9 ms -> found=    17
+L7: prefixes=   17 batches=1 kernel=bitmap      mask=    1.2 ms eval=    31.5 ms -> found=     0
+
+== summary (dispatch) ==
+total frequent itemsets: 1904
+eval time: 266.1 ms   mask build: 13.7 ms
+cross-check (BMMA vs bitmap): OK
+downward closure: OK
+planted patterns: recalled=80 missed=0 false-pos=0 (of 80)

@@ -1,0 +1,126 @@
+======================================================================
+GPU 0: NVIDIA GeForce RTX 3060 Ti
+  Multi-Processor Count: 38
+  Max Threads Per Multi-Processor: 1536
+  Warp Size: 32
+  Max Threads Per Block: 1024
+  Compute Capability: 8.6
+  Number of Multi-Processors: 38
+  Number of CUDA Cores Per SM: 128
+  Total Number of CUDA Cores: 4864
+
+CPU: 12th Gen Intel(R) Core(TM) i9-12900
+  Number of Physical Cores: 16
+  Number of Logical Cores: 24
+
+Visual Studio: 2022 (v143), MSC_VER: 1944
+CUDA Version: 12.5
+======================================================================
+transSetFile: E:\2026 Tensor Core for FIM\Kimi_work\github_package\TensorFIM\data\small\mushrooms.txt
+dimension: 119
+transNum: 8416
+itemIDmin: 1
+itemIDmax: 26
+transLengthMin: 23
+transLengthMax: 23
+transLengthMean: 23
+
+supportThreshold: 0.3
+
+dimensionReduced: 27
+transNumReduced: 8416
+transLengthReducedMin: 9
+transLengthReducedMax: 20
+transLengthReducedMean: 15.1806
+
+CPU_test_duration: 0.537; GPU_test_duration: 175.868; GPUpercentage: 0.304413
+============================List of MFIs:=============================
+1th: 6 { 97 94 90 88 79 36 }   support:0.396388  frequency: 3336
+2th: 7 { 97 94 90 57 41 38 36 }   support:0.393536  frequency: 3312
+3th: 7 { 97 94 90 38 36 24 2 }   support:0.374525  frequency: 3152
+4th: 5 { 97 94 90 36 6 }   support:0.369059  frequency: 3106
+5th: 6 { 97 94 90 79 67 36 }   support:0.368346  frequency: 3100
+6th: 6 { 97 94 90 88 67 36 }   support:0.364068  frequency: 3064
+7th: 6 { 97 94 90 38 36 11 }   support:0.358365  frequency: 3016
+8th: 6 { 97 94 90 79 38 36 }   support:0.351711  frequency: 2960
+9th: 7 { 97 94 90 67 41 36 1 }   support:0.34981  frequency: 2944
+10th: 6 { 97 94 90 88 38 36 }   support:0.347909  frequency: 2928
+11th: 6 { 128 97 94 90 38 36 }   support:0.346008  frequency: 2912
+12th: 6 { 97 94 90 38 36 5 }   support:0.341255  frequency: 2872
+13th: 6 { 97 94 90 79 71 36 }   support:0.339829  frequency: 2860
+14th: 6 { 97 94 90 79 56 36 }   support:0.338403  frequency: 2848
+15th: 6 { 97 94 90 88 56 36 }   support:0.338403  frequency: 2848
+16th: 6 { 97 94 90 88 71 36 }   support:0.335551  frequency: 2824
+17th: 7 { 94 90 71 67 41 36 1 }   support:0.331749  frequency: 2792
+18th: 6 { 94 90 88 79 67 36 }   support:0.327947  frequency: 2760
+19th: 8 { 97 94 90 56 41 36 31 1 }   support:0.326996  frequency: 2752
+20th: 7 { 97 94 90 71 41 36 1 }   support:0.326996  frequency: 2752
+21th: 7 { 100 97 94 90 56 36 24 }   support:0.326996  frequency: 2752
+22th: 7 { 120 97 94 90 56 38 36 }   support:0.325095  frequency: 2736
+23th: 7 { 97 94 90 71 56 38 36 }   support:0.325095  frequency: 2736
+24th: 7 { 97 94 90 67 56 38 36 }   support:0.325095  frequency: 2736
+25th: 7 { 120 97 94 90 38 36 2 }   support:0.324144  frequency: 2728
+26th: 6 { 94 90 88 41 36 1 }   support:0.323194  frequency: 2720
+27th: 6 { 94 90 79 41 36 1 }   support:0.323194  frequency: 2720
+28th: 5 { 94 90 41 36 5 }   support:0.321768  frequency: 2708
+29th: 7 { 97 94 90 71 67 36 1 }   support:0.32153  frequency: 2706
+30th: 6 { 97 90 71 67 41 1 }   support:0.319392  frequency: 2688
+31th: 2 { 90 12 }   support:0.318916  frequency: 2684
+32th: 6 { 90 71 67 41 38 1 }   support:0.315589  frequency: 2656
+33th: 8 { 94 90 67 41 38 36 23 1 }   support:0.315589  frequency: 2656
+34th: 6 { 94 90 88 79 41 36 }   support:0.314639  frequency: 2648
+35th: 5 { 94 90 38 36 6 }   support:0.314639  frequency: 2648
+36th: 5 { 94 90 41 36 24 }   support:0.314639  frequency: 2648
+37th: 6 { 104 94 90 71 41 36 }   support:0.312738  frequency: 2632
+38th: 5 { 94 90 55 41 36 }   support:0.311787  frequency: 2624
+39th: 7 { 104 97 90 67 41 38 1 }   support:0.311787  frequency: 2624
+40th: 6 { 97 94 90 79 36 1 }   support:0.310837  frequency: 2616
+41th: 5 { 94 90 79 36 24 }   support:0.310837  frequency: 2616
+42th: 5 { 97 90 67 31 1 }   support:0.310361  frequency: 2612
+43th: 6 { 104 90 71 67 41 38 }   support:0.309886  frequency: 2608
+44th: 7 { 104 94 90 67 41 36 1 }   support:0.309886  frequency: 2608
+45th: 5 { 104 94 90 88 36 }   support:0.309886  frequency: 2608
+46th: 7 { 94 90 71 41 36 31 1 }   support:0.309886  frequency: 2608
+47th: 5 { 104 94 90 79 36 }   support:0.309886  frequency: 2608
+48th: 7 { 94 90 67 41 36 31 1 }   support:0.309886  frequency: 2608
+49th: 8 { 94 90 71 67 41 38 36 23 }   support:0.309886  frequency: 2608
+50th: 6 { 97 94 90 88 41 36 }   support:0.307985  frequency: 2592
+51th: 6 { 97 94 90 79 41 36 }   support:0.307985  frequency: 2592
+52th: 5 { 90 71 67 31 1 }   support:0.307272  frequency: 2586
+53th: 7 { 97 94 90 71 67 56 36 }   support:0.307034  frequency: 2584
+54th: 9 { 104 97 94 90 67 41 38 36 23 }   support:0.306084  frequency: 2576
+55th: 6 { 104 97 90 71 41 38 }   support:0.306084  frequency: 2576
+56th: 6 { 94 90 79 71 67 36 }   support:0.305371  frequency: 2570
+57th: 7 { 97 94 90 71 67 41 36 }   support:0.305133  frequency: 2568
+58th: 4 { 97 90 41 5 }   support:0.305133  frequency: 2568
+59th: 4 { 97 90 38 6 }   support:0.305133  frequency: 2568
+60th: 9 { 104 97 94 90 71 67 38 36 23 }   support:0.305133  frequency: 2568
+61th: 5 { 97 90 71 31 1 }   support:0.304658  frequency: 2564
+62th: 7 { 94 90 71 67 36 23 1 }   support:0.304183  frequency: 2560
+63th: 7 { 94 90 71 67 38 36 1 }   support:0.304183  frequency: 2560
+64th: 4 { 90 55 41 38 }   support:0.303232  frequency: 2552
+65th: 6 { 94 90 88 67 38 36 }   support:0.303232  frequency: 2552
+66th: 6 { 94 90 88 71 67 36 }   support:0.303232  frequency: 2552
+67th: 6 { 94 90 79 67 38 36 }   support:0.303232  frequency: 2552
+68th: 6 { 97 94 90 88 36 1 }   support:0.302281  frequency: 2544
+69th: 5 { 90 71 67 41 31 }   support:0.302281  frequency: 2544
+70th: 6 { 104 90 71 67 41 1 }   support:0.301331  frequency: 2536
+71th: 7 { 104 94 90 71 67 36 1 }   support:0.301331  frequency: 2536
+72th: 7 { 120 97 94 90 38 36 24 }   support:0.30038  frequency: 2528
+73th: 6 { 97 94 90 55 38 36 }   support:0.30038  frequency: 2528
+74th: 6 { 94 90 88 79 36 1 }   support:0.30038  frequency: 2528
+75th: 5 { 97 94 90 42 36 }   support:0.30038  frequency: 2528
+76th: 7 { 104 97 90 71 67 38 1 }   support:0.30038  frequency: 2528
+77th: 8 { 104 97 94 90 67 38 36 1 }   support:0.30038  frequency: 2528
+78th: 8 { 104 97 94 90 67 36 23 1 }   support:0.30038  frequency: 2528
+======================================================================
+preprocessing_time(s): 0
+computation_time(s): 0.0019518
+total_time(s): 0.0019518
+
+MFIsNumber: 78
+BMMA batches: 9 (smem: 0), rows counted by BMMA: 2587, fallback waves: 3
+BMMA phase ms: mask=0.12496 bmma=0.309856 memcpy=0 scatter=0
+======================================================================
+
+

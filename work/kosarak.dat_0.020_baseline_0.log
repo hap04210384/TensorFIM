@@ -1,0 +1,76 @@
+======================================================================
+GPU 0: NVIDIA GeForce RTX 3060 Ti
+  Multi-Processor Count: 38
+  Max Threads Per Multi-Processor: 1536
+  Warp Size: 32
+  Max Threads Per Block: 1024
+  Compute Capability: 8.6
+  Number of Multi-Processors: 38
+  Number of CUDA Cores Per SM: 128
+  Total Number of CUDA Cores: 4864
+
+CPU: 12th Gen Intel(R) Core(TM) i9-12900
+  Number of Physical Cores: 16
+  Number of Logical Cores: 24
+
+Visual Studio: 2022 (v143), MSC_VER: 1944
+CUDA Version: 12.5
+======================================================================
+transSetFile: E:\2026 Tensor Core for FIM\Kimi_work\github_package\TensorFIM\data\small\kosarak.dat
+dimension: 41270
+transNum: 990002
+itemIDmin: 1
+itemIDmax: 26
+transLengthMin: 1
+transLengthMax: 2498
+transLengthMean: 8.1
+
+supportThreshold: 0.02
+
+dimensionReduced: 27
+transNumReduced: 909195
+transLengthReducedMin: 1
+transLengthReducedMax: 25
+transLengthReducedMean: 2.81503
+
+CPU_test_duration: 42.5804; GPU_test_duration: 177.564; GPUpercentage: 19.342
+============================List of MFIs:=============================
+1th: 4 { 11 6 3 1 }   support:0.0381242  frequency: 37743
+2th: 1 { 294 }   support:0.0325727  frequency: 32247
+3th: 4 { 27 11 7 6 }   support:0.0308757  frequency: 30567
+4th: 3 { 64 11 6 }   support:0.0301666  frequency: 29865
+5th: 3 { 77 11 6 }   support:0.0301313  frequency: 29830
+6th: 2 { 55 3 }   support:0.0299626  frequency: 29663
+7th: 2 { 6 2 }   support:0.0299181  frequency: 29619
+8th: 4 { 11 7 6 3 }   support:0.0252232  frequency: 24971
+9th: 3 { 11 6 4 }   support:0.0246545  frequency: 24408
+10th: 3 { 83 11 6 }   support:0.0241222  frequency: 23881
+11th: 1 { 446 }   support:0.023505  frequency: 23270
+12th: 1 { 490 }   support:0.0234595  frequency: 23225
+13th: 2 { 316 6 }   support:0.0226929  frequency: 22466
+14th: 5 { 218 148 11 6 1 }   support:0.0226707  frequency: 22444
+15th: 2 { 40 6 }   support:0.0224888  frequency: 22264
+16th: 3 { 55 11 6 }   support:0.0221616  frequency: 21940
+17th: 3 { 7 6 1 }   support:0.0219525  frequency: 21733
+18th: 1 { 215 }   support:0.0218101  frequency: 21592
+19th: 5 { 218 148 11 6 3 }   support:0.0217454  frequency: 21528
+20th: 1 { 205 }   support:0.0215888  frequency: 21373
+21th: 2 { 90 6 }   support:0.021503  frequency: 21288
+22th: 1 { 303 }   support:0.0214606  frequency: 21246
+23th: 2 { 136 6 }   support:0.021403  frequency: 21189
+24th: 2 { 64 3 }   support:0.0213888  frequency: 21175
+25th: 3 { 6 4 3 }   support:0.0213252  frequency: 21112
+26th: 3 { 138 11 6 }   support:0.0212202  frequency: 21008
+27th: 2 { 11 2 }   support:0.0210363  frequency: 20826
+28th: 2 { 69 6 }   support:0.0206454  frequency: 20439
+29th: 1 { 278 }   support:0.0203171  frequency: 20114
+30th: 4 { 27 11 6 3 }   support:0.0202888  frequency: 20086
+======================================================================
+preprocessing_time(s): 0.053
+computation_time(s): 0.0021142
+total_time(s): 0.0551142
+
+MFIsNumber: 30
+======================================================================
+
+

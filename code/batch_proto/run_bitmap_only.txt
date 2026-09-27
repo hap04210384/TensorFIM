@@ -1,0 +1,16 @@
+Batch evaluation prototype: N=8388608 tx, d=512, minsup=12582 (0.15%), mode=bitmap-only
+data gen: 1.2 s (80 planted patterns)
+F1: 248 frequent items
+L2: prefixes=  248 batches=1 kernel=bitmap      mask=    1.6 ms eval=  1090.3 ms -> found=   585
+L3: prefixes=  585 batches=1 kernel=bitmap      mask=    3.4 ms eval=  2632.3 ms -> found=   587
+L4: prefixes=  587 batches=1 kernel=bitmap      mask=    3.6 ms eval=  2693.7 ms -> found=   350
+L5: prefixes=  350 batches=1 kernel=bitmap      mask=    2.0 ms eval=  1575.3 ms -> found=   117
+L6: prefixes=  117 batches=1 kernel=bitmap      mask=    1.2 ms eval=   394.0 ms -> found=    17
+L7: prefixes=   17 batches=1 kernel=bitmap      mask=    1.2 ms eval=    31.5 ms -> found=     0
+
+== summary (bitmap-only) ==
+total frequent itemsets: 1904
+eval time: 8417.1 ms   mask build: 13.0 ms
+cross-check (BMMA vs bitmap): OK
+downward closure: OK
+planted patterns: recalled=80 missed=0 false-pos=0 (of 80)
