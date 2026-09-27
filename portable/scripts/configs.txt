@@ -1,0 +1,12 @@
+# TensorFIM USB 一键验证包 —— 配置清单
+# 每行: 数据集文件名 支持度阈值
+# （参考结果文件名按 <数据集>-<阈值六位小数>=Results.txt 规则自动匹配）
+mushrooms.txt 0.3
+chess.txt 0.8
+connect.txt 0.85
+accidents.txt 0.5
+accidents_x4.txt 0.40
+kosarak.dat 0.02
+TCGA_BRCA_stripped.txt 0.65
+pumsb_x256.txt 0.8
+T10I4D100K.txt 0.005
