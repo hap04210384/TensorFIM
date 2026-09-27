@@ -16,7 +16,7 @@ CPU: 12th Gen Intel(R) Core(TM) i9-12900
 Visual Studio: 2022 (v143), MSC_VER: 1944
 CUDA Version: 12.5
 ==================================================================
-transSetFile: E:\2026 Tensor Core for FIM\Kimi_work\experiments\rerun_postfix_20260926\data\accidents.txt
+transSetFile: data/small/accidents.txt
 dimension: 468
 transNum: 340183
 itemIDmin: 1

@@ -1,4 +1,4 @@
-# TensorFIM USB 一键验证包 —— 快速模式配置（约 30 分钟）
+# TensorFIM USB one-click validation package — quick-mode configuration (about 30 minutes)
 mushrooms.txt 0.3
 chess.txt 0.8
 pumsb_x256.txt 0.8

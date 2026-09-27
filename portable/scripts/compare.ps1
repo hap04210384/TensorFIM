@@ -1,4 +1,4 @@
-﻿# compare.ps1 — harvest logs, verify itemsets against archived references, write REPORT.txt.
+# compare.ps1 — harvest logs, verify itemsets against archived references, write REPORT.txt.
 # Usage: powershell -NoProfile -ExecutionPolicy Bypass -File compare.ps1 [-ConfigFile <path>] [-LogDir <run folder>]
 param([string]$ConfigFile = "", [string]$LogDir = "")
 $ErrorActionPreference = 'Continue'
@@ -92,7 +92,7 @@ foreach ($line in Get-Content $ConfigFile) {
 W "--- Results (median of repetitions; correctness vs archived reference) ---"
 W ($table -join "`r`n")
 W ""
-W ($(if ($allOk) { 'ALL PASS — 结果与参考完全一致，时间数据可用于论文' } else { 'SOME CONFIGS FAILED — 请勿使用本次时间数据，把 REPORT.txt 和 logs 带回分析' }))
+W ($(if ($allOk) { 'ALL PASS - results match the archived references exactly; timing data is valid for the paper' } else { 'SOME CONFIGS FAILED - do NOT use the timing data from this run; bring back REPORT.txt and the logs for analysis' }))
 [System.IO.File]::WriteAllLines($Report, $out, (New-Object System.Text.UTF8Encoding($true)))
 Write-Host ""
-Write-Host "报告已写入: $Report"
+Write-Host "Report written to: $Report"

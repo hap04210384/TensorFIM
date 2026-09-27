@@ -36,7 +36,7 @@ CString transSetFile = _T("..\\TransactionSets\\pumsb_x256.txt"); double support
 //CString transSetFile = _T("..\\TransactionSets\\kosarak.txt"); double supportThreshold = 0.0024;
 
 double frequencyThreshold;//double is necessary!
-int RUN_MODE = 1;// 消融开关: 0=纯串行CPU, 1=仅GPU, 2=CPU+GPU异构协同(默认)
+int RUN_MODE = 1;// ablation switch: 0=serial CPU only, 1=GPU only, 2=CPU+GPU heterogeneous (default)
 //=================================================================================================================
 struct FI {
     std::vector<int> itemsSet;
@@ -82,7 +82,7 @@ double GPUtaskPercentage;
 __device__ cudaError_t cudaStatus;
 __device__ int* d_TransSetReducedRAM;
 //=================================================================================================================
-// 根据计算能力获取每个SM的CUDA核心数
+// CUDA cores per SM from the compute capability
 static int getCoresPerSM(int major, int minor) {
     switch (major)
     {
@@ -93,14 +93,14 @@ static int getCoresPerSM(int major, int minor) {
     case 7: return 64;  // Volta
     case 8: return 128;  // Ampere
     case 9: return 128; // Ada Lovelace
-    case 10: return 192; // Blackwell (示例，需以NVIDIA官方数据为准)
-    default: return -1; // 未知架构
+    case 10: return 192; // Blackwell (illustrative; confirm against NVIDIA's official data)
+    default: return -1; // unknown architecture
     }
 }
 
 CString getVSversion() {
     CString vsInfo;
-    if (_MSC_VER >= 1940) vsInfo = _T("2022 (v143)");  // VS2022 17.10+ 仍归属v143
+    if (_MSC_VER >= 1940) vsInfo = _T("2022 (v143)");  // VS2022 17.10+ still reports v143
     else if (_MSC_VER >= 1930) vsInfo = _T("2022 (v143)");  // VS2022 17.0~17.9
     else if (_MSC_VER >= 1920) vsInfo = _T("2019 (v142)");  // VS2019 16.x
     else if (_MSC_VER >= 1910) vsInfo = _T("2017 (v141)");  // VS2017 15.x
@@ -117,17 +117,17 @@ CString getVSversion() {
 }
 //=================================================================================================================
 void getCPUInfo(CString& cpuName, int& physicalCores, int& logicalCores) {
-    // 1. 初始化参数
-    cpuName = _T("Unknown CPU");  // 宽字符兼容，适配Unicode
+    // 1. initialize parameters
+    cpuName = _T("Unknown CPU");  // wide-char compatible, Unicode build
     physicalCores = 0;
     logicalCores = 0;
 
-    // 2. 获取逻辑核心数
+    // 2. get the logical core count
     SYSTEM_INFO sysInfo{};
     GetSystemInfo(&sysInfo);
     logicalCores = static_cast<int>(sysInfo.dwNumberOfProcessors);
 
-    // 3. 获取物理核心数（简化容错）
+    // 3. get the physical core count (with fallback)
     DWORD bufferSize = 0;
     GetLogicalProcessorInformation(NULL, &bufferSize);
     if (bufferSize > 0) {
@@ -143,22 +143,22 @@ void getCPUInfo(CString& cpuName, int& physicalCores, int& logicalCores) {
         }
         delete[] buffer;
     }
-    // 容错：获取失败则物理核心数=逻辑核心数
+    // fallback: physical = logical on failure
     physicalCores = (physicalCores == 0) ? logicalCores : physicalCores;
 
-    // 4. 获取CPU名称（转CString）
+    // 4. get the CPU name (as CString)
     int cpuInfo[4] = { 0 };
-    char cpuBrand[0x40] = { 0 };  // 临时存储ASCII格式CPU名称
+    char cpuBrand[0x40] = { 0 };  // temporary ASCII CPU brand string
     __cpuid(cpuInfo, 0x80000000);
     if (cpuInfo[0] >= 0x80000004) {
-        // 分3次读取CPU名称
+        // read the CPU name in three chunks
         __cpuid(cpuInfo, 0x80000002); memcpy(cpuBrand + 0, cpuInfo, 16);
         __cpuid(cpuInfo, 0x80000003); memcpy(cpuBrand + 16, cpuInfo, 16);
         __cpuid(cpuInfo, 0x80000004); memcpy(cpuBrand + 32, cpuInfo, 16);
 
-        // 转换为CString（自动处理ASCII→Unicode）
+        // convert to CString (ASCII to Unicode handled implicitly)
         cpuName = CString(cpuBrand);
-        // 修剪前后多余空格（美化）
+        // trim surrounding spaces
         cpuName.Trim();
     }
 }
@@ -207,7 +207,7 @@ static void displayWorkingEnvironment() {
 //=================================================================================================================
 static bool readTransSetFile(CString transSetFile) {
     FILE* fp = _tfopen(transSetFile, _T("rb"));
-    if (!fp) { std::cout << transSetFile << " 文件打开失败 ！" << std::endl; return false; }
+    if (!fp) { std::cout << transSetFile << " open failed!" << std::endl; return false; }
     _fseeki64(fp, 0, SEEK_END); long long sz = _ftelli64(fp); _fseeki64(fp, 0, SEEK_SET);
     std::vector<char> buf(sz);
     if (sz > 0 && fread(buf.data(), 1, sz, fp) != (size_t)sz) { fclose(fp); return false; }
@@ -279,7 +279,7 @@ static void getItemsFrequenc() {
     freqPerItem_inSort = freqPerItem;
     items_inFreqSort.resize(freqPerItem.size());
     std::iota(items_inFreqSort.begin(), items_inFreqSort.end(), 0);
-    // 稳定排序替代冒泡：O(d log d)，并保持等频项的原始次序（与冒泡一致）
+    // stable sort instead of bubble sort: O(d log d), preserving the original order of equal-frequency items (as bubble sort did)
     std::stable_sort(items_inFreqSort.begin(), items_inFreqSort.end(),
         [&](int a, int b) { return freqPerItem[a] > freqPerItem[b]; });
     for (size_t i = 0; i < items_inFreqSort.size(); i++)
@@ -300,7 +300,7 @@ static void getItemsFrequenc() {
     std::cout << std::endl;*/
 }
 
-static bool FIsStackkPop(FI* result) { // 安全出栈操作
+static bool FIsStackkPop(FI* result) { // safe pop
     std::lock_guard<std::mutex> lock(mtxFIsStackk);
     if (!FIsStack.empty())
     {
@@ -310,12 +310,12 @@ static bool FIsStackkPop(FI* result) { // 安全出栈操作
     }
     else return false;
 }
-static void FIsStackkPush(FI* pushOne) { // 安全入栈操作
+static void FIsStackkPush(FI* pushOne) { // safe push
     std::lock_guard<std::mutex> lock(mtxFIsStackk);
     FIsStack.push_back(*pushOne);
 }
 
-static void MFIsPoolPush(FI* pushOne) { // 安全入栈操作
+static void MFIsPoolPush(FI* pushOne) { // safe push
     std::lock_guard<std::mutex> lock(mtxMFIsPool);
     MFIsPool.push_back(*pushOne);
 }
@@ -330,17 +330,17 @@ static bool isOutside(int item, FI* one)
     else return true;
 }
 
-//===================== 位图（binary vector）支持度统计：全局结构 =====================
-// 每个项一个位向量：第 t 位置 1 表示第 t 条（精减后）事务包含该项。
-// 候选 X 的条件库 = X 中各项位向量的 AND；项 e 在其中的频度 = popcount(AND 结果 & bv[e])。
-// 与原先逐事务扫描完全等价，但把 O(N×L) 的比较变成 O(N/64) 的位运算。
-static std::vector<unsigned long long> h_bitmap;   // (itemIDmax+1) × bitmapWords 的扁平数组
+//===================== bitmap (binary vector) support counting: global state =====================
+// one bit vector per item: bit t set means the t-th (reduced) transaction contains the item.
+// the conditional database of candidate X is the AND of its member bit vectors; the frequency of item e in it is popcount(AND result & bv[e]).
+// exactly equivalent to per-transaction scanning, but O(N*L) comparisons become O(N/64) bit operations.
+static std::vector<unsigned long long> h_bitmap;   // flat (itemIDmax+1) x bitmapWords array
 static std::vector<int> denseToOrig;   // ID compaction: dense id -> original item id (for output unmapping)
 static int bitmapWords = 0;
-static std::vector<int> freqItems;                 // 精减后幸存项（freqPerItem >= frequencyThreshold）的 ID 列表
+static std::vector<int> freqItems;                 // IDs of the surviving items after reduction (freqPerItem >= frequencyThreshold)
 static int freqItemsNum = 0;
-static unsigned long long* d_bitmap = nullptr;     // GPU 端位图（只读，所有工作线程共享）
-static int* d_freqItems = nullptr;                 // GPU 端幸存项 ID 列表
+static unsigned long long* d_bitmap = nullptr;     // device bitmap (read-only, shared by all worker threads)
+static int* d_freqItems = nullptr;                 // device survivor-item ID list
 
 // BMMA (Tensor Core b1) lookahead batch counting: globals (impl. below, before recursiveExpansion)
 static unsigned* d_bmmaB = nullptr;        // compact B: freqItems (padded) x W32 uint32 words
@@ -367,14 +367,14 @@ static int envMaskWpb() {
     return v >= 256 ? v : 4096;
 }
 
-// 运行时探测 SM 数：调度阈值按卡自适应，跨平台（sm_80+）无需改代码
+// detect the SM count at runtime: dispatch thresholds adapt per card, no code change across platforms (sm_80+)
 static int gpuSMCount() {
     static int n = 0;
     if (n == 0) {
         int dev = 0;
         cudaGetDevice(&dev);
         cudaDeviceGetAttribute(&n, cudaDevAttrMultiProcessorCount, dev);
-        if (n <= 0) n = 38;   // 查询失败时退回开发机（3060 Ti）的默认值
+        if (n <= 0) n = 38;   // fall back to the development card's default (3060 Ti) on query failure
     }
     return n;
 }
@@ -427,10 +427,10 @@ static void buildBitmap() {
 
 static void uploadBitmapToGPU() {
     size_t bitmapBytes = (size_t)(itemIDmax + 1) * bitmapWords * sizeof(unsigned long long);
-    if (cudaMalloc(&d_bitmap, bitmapBytes) != cudaSuccess) { std::cerr << "d_bitmap分配失败" << std::endl; return; }
-    if (cudaMemcpy(d_bitmap, h_bitmap.data(), bitmapBytes, cudaMemcpyHostToDevice) != cudaSuccess) { std::cerr << "d_bitmap拷贝失败" << std::endl; return; }
-    if (cudaMalloc(&d_freqItems, freqItemsNum * sizeof(int)) != cudaSuccess) { std::cerr << "d_freqItems分配失败" << std::endl; return; }
-    if (cudaMemcpy(d_freqItems, freqItems.data(), freqItemsNum * sizeof(int), cudaMemcpyHostToDevice) != cudaSuccess) { std::cerr << "d_freqItems拷贝失败" << std::endl; return; }
+    if (cudaMalloc(&d_bitmap, bitmapBytes) != cudaSuccess) { std::cerr << "d_bitmap allocation failed" << std::endl; return; }
+    if (cudaMemcpy(d_bitmap, h_bitmap.data(), bitmapBytes, cudaMemcpyHostToDevice) != cudaSuccess) { std::cerr << "d_bitmap copy failed" << std::endl; return; }
+    if (cudaMalloc(&d_freqItems, freqItemsNum * sizeof(int)) != cudaSuccess) { std::cerr << "d_freqItems allocation failed" << std::endl; return; }
+    if (cudaMemcpy(d_freqItems, freqItems.data(), freqItemsNum * sizeof(int), cudaMemcpyHostToDevice) != cudaSuccess) { std::cerr << "d_freqItems copy failed" << std::endl; return; }
     // BMMA compact B: survivor bitmaps only, col-major (one contiguous N-bit vector per item),
     // columns padded to a multiple of 64 (zero padding does not affect counts).
     bmmaW32 = bitmapWords * 2;
@@ -446,7 +446,7 @@ static void uploadBitmapToGPU() {
 static void getResFrequency(FI newOne, std::vector<int>* resFrequency) {
     std::fill(resFrequency->begin(), resFrequency->end(), 0);
     const int W = bitmapWords;
-    static thread_local std::vector<unsigned long long> mask;  // 每线程复用，避免反复分配
+    static thread_local std::vector<unsigned long long> mask;  // per-thread reuse avoids repeated allocation
     mask.assign(W, ~0ULL);
     for (int x : newOne.itemsSet) {
         const unsigned long long* bv = h_bitmap.data() + (size_t)x * W;
@@ -463,8 +463,8 @@ static void getResFrequency(FI newOne, std::vector<int>* resFrequency) {
     resFrequency->at(itemIDmax + 1) = cnt;
 }
 
-// 位图版核函数：每个 block 负责一个幸存项 e，块内线程按字跨步计算
-// popcount(bv[e] & bv[X0] & bv[X1] & ...)，warp shuffle + shared memory 两级归约。
+// bitmap kernel: each block owns one surviving item e; threads stride over words computing
+// popcount(bv[e] & bv[X0] & bv[X1] & ...)，warp shuffle plus shared-memory two-level reduction.
 __global__ void getResFrequencyCudaKernel(int* d_resFrequencyCompact, int* d_itemsSet, int itemsNum,
     unsigned long long* d_bitmap, int bitmapWords, int* d_freqItems, int freqItemsNum)
 {
@@ -480,10 +480,10 @@ __global__ void getResFrequencyCudaKernel(int* d_resFrequencyCompact, int* d_ite
             m &= d_bitmap[(size_t)d_itemsSet[i] * bitmapWords + w];
         local += __popcll(m);
     }
-    // warp 内归约
+    // intra-warp reduction
     for (int offset = 16; offset > 0; offset >>= 1)
         local += __shfl_down_sync(0xffffffffULL, local, offset);
-    // warp 间归约
+    // inter-warp reduction
     __shared__ unsigned long long warpSums[32];
     int lane = threadIdx.x & 31, warp = threadIdx.x >> 5;
     if (lane == 0) warpSums[warp] = local;
@@ -497,33 +497,33 @@ __global__ void getResFrequencyCudaKernel(int* d_resFrequencyCompact, int* d_ite
     }
 }
 
-// 每个工作线程各自的常驻设备缓冲区：懒分配一次、复用全程，进程退出时由驱动统一回收。
-// 消除了原先每次调用都 cudaMalloc/cudaFree 的巨额开销（实测每次调用约 1~2 ms，
-// 而 chess 上核函数本身只需微秒级）。
+// each worker thread keeps its own resident device buffers: lazily allocated once, reused for the whole run, reclaimed by the driver at exit.
+// this removes the heavy per-call cudaMalloc/cudaFree overhead (measured at roughly 1-2 ms per call,
+// while the kernel itself takes microseconds on chess).
 static thread_local int* tl_d_resFrequency = nullptr;
 static thread_local int* tl_d_itemsSet = nullptr;
 static thread_local cudaStream_t tl_stream = nullptr;
 
 cudaError_t getResFrequencyCuda(FI newOne, std::vector<int>* resFrequency) {
-    // 前置校验：避免空指针/非法参数
+    // pre-flight checks against null pointers and invalid arguments
     if (resFrequency == nullptr || resFrequency->empty() || newOne.itemsSet.empty()) {
-        std::cerr << "错误：输入参数为空或无效" << std::endl;
+        std::cerr << "error: null or invalid input arguments" << std::endl;
         return cudaErrorInvalidValue;
     }
     if (itemIDmax <= 0 || bitmapWords <= 0 || freqItemsNum <= 0 || d_bitmap == nullptr || d_freqItems == nullptr) {
-        std::cerr << "错误：位图未初始化或全局变量非法" << std::endl;
+        std::cerr << "error: bitmap not initialized or invalid global state" << std::endl;
         return cudaErrorInvalidValue;
     }
 
-    // 1. 初始化输出vector
+    // 1. initialize the output vector
     std::fill(resFrequency->begin(), resFrequency->end(), 0);
 
-    // 2. 懒分配本线程常驻缓冲区、非阻塞流
-    //    位图版结果采用紧凑布局：只有 freqItemsNum 个频度值，回传量从 (itemIDmax+1) 个 int 降到幸存项数个
+    // 2. lazily allocate this thread's resident buffers and non-blocking stream
+    //    bitmap-version results use a compact layout: only freqItemsNum counts are copied back, down from (itemIDmax+1) ints to one per survivor
     if (tl_d_resFrequency == nullptr) {
         cudaStatus = cudaMalloc(&tl_d_resFrequency, freqItemsNum * sizeof(int));
         if (cudaStatus != cudaSuccess) {
-            std::cerr << "分配d_resFrequency失败：" << cudaGetErrorString(cudaStatus) << std::endl;
+            std::cerr << "d_resFrequency allocation failed: " << cudaGetErrorString(cudaStatus) << std::endl;
             tl_d_resFrequency = nullptr;
             return cudaStatus;
         }
@@ -531,7 +531,7 @@ cudaError_t getResFrequencyCuda(FI newOne, std::vector<int>* resFrequency) {
     if (tl_d_itemsSet == nullptr) {
         cudaStatus = cudaMalloc(&tl_d_itemsSet, (itemIDmax + 1) * sizeof(int));
         if (cudaStatus != cudaSuccess) {
-            std::cerr << "分配d_itemsSet失败：" << cudaGetErrorString(cudaStatus) << std::endl;
+            std::cerr << "d_itemsSet allocation failed: " << cudaGetErrorString(cudaStatus) << std::endl;
             tl_d_itemsSet = nullptr;
             return cudaStatus;
         }
@@ -539,47 +539,47 @@ cudaError_t getResFrequencyCuda(FI newOne, std::vector<int>* resFrequency) {
     if (tl_stream == nullptr) {
         cudaStatus = cudaStreamCreateWithFlags(&tl_stream, cudaStreamNonBlocking);
         if (cudaStatus != cudaSuccess) {
-            std::cerr << "创建CUDA流失败：" << cudaGetErrorString(cudaStatus) << std::endl;
+            std::cerr << "CUDA stream creation failed: " << cudaGetErrorString(cudaStatus) << std::endl;
             tl_stream = nullptr;
             return cudaStatus;
         }
     }
 
-    // 3. 仅拷贝候选项集本身（几十字节）
+    // 3. copy only the candidate itemset itself (tens of bytes)
     int itemsNum = newOne.itemsSet.size();
     cudaStatus = cudaMemcpyAsync(tl_d_itemsSet, newOne.itemsSet.data(),
         itemsNum * sizeof(int), cudaMemcpyHostToDevice, tl_stream);
     if (cudaStatus != cudaSuccess) {
-        std::cerr << "拷贝d_itemsSet失败：" << cudaGetErrorString(cudaStatus) << std::endl;
+        std::cerr << "d_itemsSet copy failed: " << cudaGetErrorString(cudaStatus) << std::endl;
         return cudaStatus;
     }
 
-    // 4. 每个 block 负责一个幸存项，256 线程/块，在本线程私有流上启动
+    // 4. one block per surviving item, 256 threads per block, launched on this thread's private stream
     getResFrequencyCudaKernel << <freqItemsNum, 256, 0, tl_stream >> > (
         tl_d_resFrequency, tl_d_itemsSet, itemsNum, d_bitmap, bitmapWords, d_freqItems, freqItemsNum
         );
     cudaStatus = cudaGetLastError();
     if (cudaStatus != cudaSuccess) {
-        std::cerr << "核函数启动失败：" << cudaGetErrorString(cudaStatus) << std::endl;
+        std::cerr << "kernel launch failed: " << cudaGetErrorString(cudaStatus) << std::endl;
         return cudaStatus;
     }
 
-    // 5. 紧凑结果在同一私有流上拷回，随后只等待本流完成
+    // 5. copy the compact results back on the same private stream, then wait only on that stream
     static thread_local std::vector<int> h_compact;
     h_compact.resize(freqItemsNum);
     cudaStatus = cudaMemcpyAsync(h_compact.data(), tl_d_resFrequency,
         freqItemsNum * sizeof(int), cudaMemcpyDeviceToHost, tl_stream);
     if (cudaStatus != cudaSuccess) {
-        std::cerr << "拷贝结果回主机端失败：" << cudaGetErrorString(cudaStatus) << std::endl;
+        std::cerr << "result copy-back failed: " << cudaGetErrorString(cudaStatus) << std::endl;
         return cudaStatus;
     }
     cudaStatus = cudaStreamSynchronize(tl_stream);
     if (cudaStatus != cudaSuccess) {
-        std::cerr << "核函数执行失败：" << cudaGetErrorString(cudaStatus) << std::endl;
+        std::cerr << "kernel execution failed: " << cudaGetErrorString(cudaStatus) << std::endl;
         return cudaStatus;
     }
 
-    // 6. 散射回 resFrequency（按幸存项 ID），并统计达到阈值的项数
+    // 6. scatter back into resFrequency (by survivor item ID) and count the items reaching the threshold
     int cnt = 0;
     for (int idx = 0; idx < freqItemsNum; idx++) {
         int v = h_compact[idx];
@@ -1072,45 +1072,45 @@ static void output2file(CString resultFile, int dimensionReduced) {
     outfile.close();
 }
 
-static void reduceTransSet() {//精减事务集
+static void reduceTransSet() {// reduce the transaction set
     for (auto& row : h_transSet) {
         row.erase(std::remove_if(row.begin(), row.end(),
             [&](int x) { return (x >= 0 && x < freqPerItem.size()) && (freqPerItem[x] < frequencyThreshold); }),
             row.end());
     }
-    // 两遍法压缩：一次性删除全部空行，避免逐行 erase 触发 O(N^2) 搬移（kosarak 上 55s->~1s）
+    // two-pass compaction: remove all empty rows at once, avoiding the O(N^2) moves of per-row erase (kosarak: 55 s down to ~1 s)
     h_transSet.erase(std::remove_if(h_transSet.begin(), h_transSet.end(),
         [](const std::vector<int>& r) { return r.empty(); }),
         h_transSet.end());
-    //for (const auto& r : h_transSet) { for (int val : r) std::cout << val << ' '; std::cout << std::endl; }// 输出结果
+    //for (const auto& r : h_transSet) { for (int val : r) std::cout << val << ' '; std::cout << std::endl; }// print the result
 }
 
 void create_d_transSet(int max_transLengthReduced, int transNumReduced)
 {
-    // 1. 参数合法性校验
+    // 1. validate arguments
     if (max_transLengthReduced <= 0 || transNumReduced <= 0) {
-        std::cout << "参数错误：max_transLengthReduced 或 transNumReduced 不能为非正数" << std::endl;
+        std::cout << "parameter error: max_transLengthReduced and transNumReduced must be positive" << std::endl;
         return;
     }
     cudaError_t cudaStatus = cudaSuccess;
-    // 2. 释放旧内存（避免内存泄漏）
+    // 2. release old memory (avoid leaks)
     if (d_transSet != nullptr) {
         cudaFree(d_transSet);
         d_transSet = nullptr;
     }
-    // 3. 分配设备端连续内存
+    // 3. allocate contiguous device memory
     size_t totalSize = transNumReduced * (max_transLengthReduced + 1) * sizeof(int);
     cudaStatus = cudaMalloc(&d_transSet, totalSize);
     if (cudaStatus != cudaSuccess) {
-        std::cout << "设备端d_transSet连续内存分配失败: " << cudaGetErrorString(cudaStatus) << std::endl;
+        std::cout << "device d_transSet contiguous allocation failed: " << cudaGetErrorString(cudaStatus) << std::endl;
         return;
     }
-    // 4. 主机端一次性拼装整块连续缓冲，再一次 cudaMemcpy 完成传输
-    //    （原先逐行拷贝，accidents 约 30 万行即 30 万次 API 调用，耗时数秒）
+    // 4. assemble one contiguous host buffer, then transfer it with a single cudaMemcpy
+    //    (the old row-by-row copy made ~300k API calls on accidents and took seconds)
     size_t rowPitch = (size_t)max_transLengthReduced + 1;
     int* h_block = new (std::nothrow) int[(size_t)transNumReduced * rowPitch];
     if (h_block == nullptr) {
-        std::cout << "主机端h_block内存分配失败" << std::endl;
+        std::cout << "host h_block allocation failed" << std::endl;
         cudaFree(d_transSet);
         d_transSet = nullptr;
         return;
@@ -1125,7 +1125,7 @@ void create_d_transSet(int max_transLengthReduced, int transNumReduced)
     cudaStatus = cudaMemcpy(d_transSet, h_block, totalSize, cudaMemcpyHostToDevice);
     delete[] h_block;
     if (cudaStatus != cudaSuccess) {
-        std::cout << "设备事务集数据整体拷贝失败: " << cudaGetErrorString(cudaStatus) << std::endl;
+        std::cout << "device transaction-set bulk copy failed: " << cudaGetErrorString(cudaStatus) << std::endl;
         cudaFree(d_transSet);
         d_transSet = nullptr;
         return;
@@ -1185,7 +1185,7 @@ int main(int argc, char** argv)
     //=================================================================================================================
     getItemsFrequenc();
     //=================================================================================================================
-    int CPU_parallel_num = (RUN_MODE == 0) ? 1 : CPUlogicalCores;// 串行模式单线程
+    int CPU_parallel_num = (RUN_MODE == 0) ? 1 : CPUlogicalCores;// single thread in serial mode
     frequencyThreshold = transNum * supportThreshold;
 
     clock_t tic, toc;
@@ -1201,14 +1201,14 @@ int main(int argc, char** argv)
     transLengthReducedMin = INT_MAX;
     transLengthReducedMax = 0;
     transLengthReducedMean = 0;
-    for (const auto& row : h_transSet) {//获取最小最大长度
+    for (const auto& row : h_transSet) {// find the min and max lengths
         if (row.size() < transLengthReducedMin) transLengthReducedMin = row.size();
         if (row.size() > transLengthReducedMax) transLengthReducedMax = row.size();
         transLengthReducedMean += row.size();
     }
     transLengthReducedMean /= transNumReduced;
     //=================================================================================================================
-    // 构建位图（binary vector mapping）：每个项一个位向量，计时并入 preprocessing_time
+    // build the bitmap (binary vector mapping), one bit vector per item; timed into preprocessing_time
     tic = clock();
     buildBitmap();
     toc = clock();
@@ -1216,10 +1216,10 @@ int main(int argc, char** argv)
     //=================================================================================================================
     displayTransSetInformation();
     //=================================================================================================================
-    uploadBitmapToGPU();// 位图版：GPU 侧只需位图与幸存项列表，不再逐行传输事务集
+    uploadBitmapToGPU();// bitmap version: the GPU needs only the bitmap and the survivor list, not per-row transaction uploads
     GPUtaskPercentage = getGPUtaskPercentage(CPU_parallel_num);
     //=================================================================================================================
-    auto comp_t0 = std::chrono::high_resolution_clock::now();// 毫秒级以下耗时需高精度计时
+    auto comp_t0 = std::chrono::high_resolution_clock::now();// sub-millisecond work needs high-resolution timing
     //=================================================================================================================
     for (int i = 0; i < dimensionReduced; i++) {
         FI newOne;
@@ -1235,7 +1235,7 @@ int main(int argc, char** argv)
     /**/
     if (RUN_MODE == 1 && BMMA_ENGINE) runWaveEngine();   // batched BMMA wave engine
     else
-    Concurrency::parallel_for//正文
+    Concurrency::parallel_for  // main body
     (1, CPU_parallel_num + 1, [](int parallelID)
         {
             FI popOne;
@@ -1283,12 +1283,12 @@ int main(int argc, char** argv)
 
     std::sort(MFIsPool.begin(), MFIsPool.end(),
         [](const auto& a, const auto& b) {
-            return a.frequency > b.frequency; // 降序：frequency大的在前
+            return a.frequency > b.frequency; // descending: higher frequency first
         });
 
     output2displayer();
 
-    CString resultFile;//生成结果文件 
+    CString resultFile;// result file name 
     resultFile.Format(_T("%s-%f=Results.txt"), transSetFile, supportThreshold);
     output2file(resultFile, dimensionReduced);
 

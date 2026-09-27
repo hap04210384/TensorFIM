@@ -1,59 +1,47 @@
-# 攒批评估调度原型 —— 结果报告
+# Batch-Evaluation Scheduling Prototype — Results
 
-日期：2026-09-23 ｜ 代码：`batch_proto.cu` ｜ 平台：RTX 3060 Ti (sm_86), CUDA 12.5
-对应交接说明第 2 步 + 备忘录第 4 节映射、第 7 节风险①（批量不足回退）。
+Date: 2026-09-23 | Code: `batch_proto.cu` | Platform: RTX 3060 Ti (sm_86), CUDA 12.5
 
-## 原型结构
+## Prototype structure
 
-- **合成数据**：N = 8,388,608 事务 × d = 512 项，埋入 80 个长度 2~6 的相关模式
-  （频率 0.2%~1.5%）+ 0.02% 噪声项；minsup = 0.15%N = 12,582。位图布局与 AnyFIM 完全一致。
-- **分层搜索**：每层的幸存前缀 mask（各项位图 AND，`mask_build_kernel`）堆成 A 矩阵，
-  一次矩阵乘得到整批候选对**所有**扩展项的支持度，按 minsup 剪枝，规范序扩展下一层。
-- **分流器**（阈值来自微基准实测）：
-  `b < 64` → 位图内核（回退）；块数 < 76（喂不满 38 SM）→ BMMA 朴素版；
-  `B > 256 MB` → BMMA 分块版；否则朴素版。
-- **对照**：`--bitmap-only` 强制全程位图内核。
+- **Synthetic data**: N = 8,388,608 transactions × d = 512 items, with 80 planted correlated patterns of length 2–6 (frequency 0.2%–1.5%) + 0.02% noise items; minsup = 0.15%·N = 12,582. The bitmap layout is identical to AnyFIM's.
+- **Level-wise search**: at each level, the surviving prefix masks (AND of per-item bitmaps, `mask_build_kernel`) are stacked into matrix A; a single matrix multiply yields the supports of the whole candidate batch against **all** extension items; candidates are pruned by minsup and the next level is expanded in canonical order.
+- **Dispatcher** (thresholds from the microbenchmark measurements):
+  `b < 64` → bitmap kernel (fallback); tiles < 76 (cannot feed 38 SMs) → BMMA naive;
+  `B > 256 MB` → BMMA tiled; otherwise naive.
+- **Control**: `--bitmap-only` forces the bitmap kernel throughout.
 
-## 运行结果（两模式产出完全相同：1904 个频繁项集）
+## Results (both modes produce identical output: 1904 frequent itemsets)
 
-| 层 | 前缀数 | 分流模式内核 | 分流 eval | 纯位图 eval |
+| Level | #prefixes | dispatched kernel | dispatched eval | bitmap-only eval |
 |---:|---:|:---:|---:|---:|
 | L2 | 248 | BMMA-naive | 26.0 ms | 1078.5 ms |
 | L3 | 585 | BMMA-smem | 73.8 ms | 2662.7 ms |
 | L4 | 587 | BMMA-smem | 75.0 ms | 2629.9 ms |
 | L5 | 350 | BMMA-naive | 40.1 ms | 1538.1 ms |
 | L6 | 117 | BMMA-naive | 22.0 ms | 376.6 ms |
-| L7 | 17 | **bitmap（回退触发）** | 31.5 ms | 31.6 ms |
-| **合计** | | | **268.3 ms** | **8317.3 ms** |
+| L7 | 17 | **bitmap (fallback triggered)** | 31.5 ms | 31.6 ms |
+| **Total** | | | **268.3 ms** | **8317.3 ms** |
 
-**端到端计数加速比：31.0×**（mask 构建两种模式相同，仅 ~13 ms）。
+**End-to-end counting speedup: 31.0x** (mask construction is identical in both modes, only ~13 ms).
 
-## 正确性（全部通过）
+## Correctness (all checks passed)
 
-- 每层首批 BMMA 结果与位图内核逐元素交叉一致
-- 频繁项集满足向下闭合性（Apriori 性质）
-- 80 个埋入模式召回 80/80，无漏报无误报（与支持度精确计数完全自洽）
+- The first batch of BMMA results at every level matches the bitmap kernel element by element
+- Frequent itemsets satisfy downward closure (the Apriori property)
+- All 80 planted patterns recalled (80/80), no false negatives or false positives — fully consistent with exact support counting
 
-## 验证到的设计点
+## Validated design points
 
-1. **批量阈值回退（备忘录风险①）成立且廉价**：L7 仅 17 个前缀凑不满 64 行 tile，
-   自动回退位图内核，耗时 31.5 ms 与 BMMA 路径同量级，无 cliff。
-2. **三条路径全部被自然触发**——分流器规则有效，且规则参数直接来自微基准数据。
-3. 一次矩阵乘算全扩展项的支持度，消除了逐候选循环；计数占端到端时间的比例
-   从纯位图的 >99% 降到可控范围，瓶颈回到搜索/调度逻辑（正是 AnyFIM 论文的论点）。
-4. mask 构建（逐前缀 AND k 个位图）当前仅 ~5% 开销；千万级事务以上规模需再评估
-   （可考虑父 mask 增量 AND，避免每层重算）。
+1. **The batch-threshold fallback is sound and cheap**: L7 has only 17 prefixes, not enough to fill a 64-row tile, so it automatically falls back to the bitmap kernel at 31.5 ms — same order as the BMMA path, no cliff.
+2. **All three dispatch paths are triggered naturally** — the dispatcher rules are effective, and their parameters come directly from microbenchmark data.
+3. One matrix multiply computes the supports of all extension items, eliminating the per-candidate loop; the share of counting in end-to-end time drops from > 99% (bitmap-only) to a controlled range, moving the bottleneck back to search/scheduling logic.
+4. Mask construction (AND of k bitmaps per prefix) currently costs only ~5%; at scales beyond ten million transactions it should be re-evaluated (e.g. incremental AND from the parent mask to avoid recomputation per level).
 
-## 复现
+## Reproduce
 
 ```
-build.bat                 # vcvars64 + nvcc -O3 -arch=sm_86
-batch_proto.exe           # 分流模式
-batch_proto.exe --bitmap-only   # 纯位图对照
+build.bat                       # vcvars64 + nvcc -O3 -arch=sm_86
+batch_proto.exe                 # dispatched mode
+batch_proto.exe --bitmap-only   # bitmap-only control
 ```
-
-## 下一步
-
-- 接入 AnyFIM 真实搜索树（任务栈/分流器改造，备忘录第 5 节①，2~4 周工作量）
-- 千万级以上真实/合成数据集物色（FIMI 扩展、TCGA 类宽数据）
-- 可选：cp.async 双缓冲把分块版从 56 推向 80+ Tbit/s（论文消融素材）

@@ -1,73 +1,55 @@
-# BMMA 微基准结果 —— RTX 3060 Ti (sm_86, CUDA 12.5)
+# BMMA Microbenchmark Results — RTX 3060 Ti (sm_86, CUDA 12.5)
 
-日期：2026-09-23 ｜ 代码：`bmma_bench.cu` ｜ 原始输出：`sweep_results.txt`（v1 朴素版）、`sweep_results_v2.txt`（v1+v2+位图三方对比）
+Date: 2026-09-23 | Code: `bmma_bench.cu` | Raw output: `sweep_results.txt` (v1 naive), `sweep_results_v2.txt` (three-way comparison of v1 + v2 + bitmap)
 
-## 结论（先说判断）
+## Verdict
 
-**方向成立，绿灯。** 两版 WMMA b1 内核在所有规模上都明确快过 AnyFIM 风格的手写位图循环，
-结果与 CPU 参考**逐位精确一致**（AND+popcount，无精度损失）。共享内存分块版在大形状下
-达到 **53~56 Tbit-op/s**，对位图循环加速最高 **62.7×**；两版内核按形状择优，几何平均加速比
-**25.8×**（7 组配置）。
+**The approach works — green light.** Both WMMA b1 kernels are clearly faster than the AnyFIM-style hand-written bitmap loop at every shape, with results **bit-exact** against the CPU reference (AND + popcount, no precision loss). The shared-memory tiled variant reaches **53–56 Tbit-op/s** on large shapes, up to **62.7x** over the bitmap loop; picking the better of the two kernels per shape gives a geometric-mean speedup of **25.8x** (7 configurations).
 
-## 工作负载（与备忘录第 4 节映射一致）
+## Workload
 
-C(b×d) = A(b×N 比特) × B(N×d 比特，按项位图列存储)，每个 C 元素 = 两个 N 位向量的
-popcount(AND)。三个内核计算完全相同的 C：
-- `bmma_kernel`（v1 朴素）：WMMA b1 片段 8×8×128，片段直接按 N 比特跨步从全局内存装载
-- `bmma_smem_kernel`（v2 分块）：64×64 输出块，协作合并装载 64×2048 比特的 A/B 块进共享内存，片段从共享内存装载
-- `bitmap_kernel`：64 位 AND + `__popcll` 循环（与 AnyFIM `getResFrequencyCudaKernel` 同型）
+C(b×d) = A(b×N bits) × B(N×d bits, stored column-wise as per-item bitmaps); each C element = popcount(AND) of two N-bit vectors. All three kernels compute exactly the same C:
 
-## 实测数据（best-of-N，吞吐单位：1 bit-op = 一次 1 比特 AND+累加）
+- `bmma_kernel` (v1 naive): WMMA b1 fragments 8×8×128, fragments loaded from global memory with N-bit strides
+- `bmma_smem_kernel` (v2 tiled): 64×64 output tiles, cooperative coalesced loads of 64×2048-bit A/B tiles into shared memory, fragments loaded from shared memory
+- `bitmap_kernel`: 64-bit AND + `__popcll` loop (same shape as AnyFIM's `getResFrequencyCudaKernel`)
 
-| N（事务数） | d（项） | b（批量） | v1 朴素 (Tbit/s) | v2 分块 (Tbit/s) | 位图循环 (Tbit/s) | 最优加速比 |
+## Measured data (best-of-N; throughput unit: 1 bit-op = one 1-bit AND + accumulate)
+
+| N (transactions) | d (items) | b (batch) | v1 naive (Tbit/s) | v2 tiled (Tbit/s) | bitmap loop (Tbit/s) | best speedup |
 |---:|---:|---:|---:|---:|---:|---:|
-| 1.0 M | 256 | 128 | 12.7 | 8.6 | 3.7 | 3.39× |
-| 1.0 M | 256 | 1024 | **55.9** | 42.7 | 1.6 | 34.46× |
-| 4.2 M | 256 | 1024 | 46.8 | 41.7 | 1.1 | 43.21× |
-| 4.2 M | 1024 | 1024 | 5.9 | **53.0** | 1.0 | **54.94×** |
-| 16.8 M | 1024 | 1024 | 5.4 | **53.3** | 0.9 | **62.71×** |
-| 67.1 M | 256 | 128 | **12.7** | 8.3 | 1.3 | 10.16× |
-| 1.0 M | 16384 | 1024 | 6.0 | **56.2** | 1.3 | **42.66×** |
+| 1.0 M | 256 | 128 | 12.7 | 8.6 | 3.7 | 3.39x |
+| 1.0 M | 256 | 1024 | **55.9** | 42.7 | 1.6 | 34.46x |
+| 4.2 M | 256 | 1024 | 46.8 | 41.7 | 1.1 | 43.21x |
+| 4.2 M | 1024 | 1024 | 5.9 | **53.0** | 1.0 | **54.94x** |
+| 16.8 M | 1024 | 1024 | 5.4 | **53.3** | 0.9 | **62.71x** |
+| 67.1 M | 256 | 128 | **12.7** | 8.3 | 1.3 | 10.16x |
+| 1.0 M | 16384 | 1024 | 6.0 | **56.2** | 1.3 | **42.66x** |
 
-（16.8M×d4096×b128 因 8.9 GB 超显存预算跳过）
+(16.8M × d4096 × b128 skipped: 8.9 GB exceeds the memory budget.)
 
-## 解读
+## Interpretation
 
-1. **分块版的收益精准兑现**：v1 在 B 矩阵大（>0.5 GB）时掉到 ~6 Tbit/s（b1 片段按 N 比特
-   跨步装载，全是分散的 16B 访问）；v2 把全局访问改为合并块装载后，这些形状全部拉到
-   **53~56 Tbit/s**，提升 9~10 倍——瓶颈确实是访存模式而非张量核算力。
-2. **两版互补，需要分流**：B 小且 cache 可驻留（d=256）时 v1 更优（55.9 vs 42.7）；
-   块数过少喂不满 38 个 SM 时（64M×d256×b128，仅 8 块）v1 也更优。生产内核应按
-   "B 字节数 / 块占用率" 做二选一——这与 AnyFIM 既有的实测分流器思路同构。
-3. 规模越大、批量越大，优势越稳：千万级事务 + b=1024 批量下 43~63×，直接支撑
-   备忘录"攒批评估"的核心设计。
-4. 位图循环基线全形状 0.9~3.7 Tbit/s，与 AnyFIM 位图内核同型同量级，对比公平。
-5. 余量：3060 Ti 的 BMMA 理论峰值远高于 56 Tbit/s，cp.async 双缓冲流水、更大的
-   k-chunk、warp 级多行条带都可再压；但 25.8× geomean 已足够立项，剩余优化留作论文
-   消融素材。
+1. **The tiling payoff materializes exactly as predicted**: v1 drops to ~6 Tbit/s when matrix B is large (> 0.5 GB) — b1 fragments load with N-bit strides, i.e. scattered 16-byte accesses; after v2 switches global accesses to coalesced tile loads, those shapes all reach **53–56 Tbit/s**, a 9–10x improvement. The bottleneck is indeed the memory-access pattern, not tensor-core throughput.
+2. **The two kernels are complementary and need a dispatcher**: when B is small and cache-resident (d = 256), v1 wins (55.9 vs 42.7); when there are too few tiles to feed 38 SMs (64M × d256 × b128, only 8 tiles), v1 also wins. A production kernel should choose between the two based on "B bytes / tile occupancy" — structurally the same idea as AnyFIM's existing measurement-driven dispatcher.
+3. The larger the scale and the batch, the more stable the advantage: 43–63x at tens of millions of transactions with b = 1024, directly supporting the batch-evaluation design.
+4. The bitmap-loop baseline sits at 0.9–3.7 Tbit/s across all shapes — same shape and same order of magnitude as AnyFIM's bitmap kernel, so the comparison is fair.
+5. Headroom: the theoretical BMMA peak of the 3060 Ti is far above 56 Tbit/s; cp.async double buffering, larger k-chunks, and warp-level multi-row striping could push further. The remaining optimizations serve as ablation material.
 
-## 踩坑记录（写原型内核前必读）
+## Pitfalls (read before writing the production kernel)
 
-1. **b1 片段的 `ldm` 单位是比特**，不是 32 位字数（须为 128 的倍数）；本工程 N 统一填充到 4096 比特倍数。
-2. **`bmma_sync` 默认位运算是 XOR**，必须显式传 `wmma::experimental::bmmaBitOpAND` + `bmmaAccumulateOpPOPC`。
-3. b1 的加载/存储 API 是 `load_matrix_sync` / `store_matrix_sync`（不是 `load_matrix`）。
-4. B 矩阵 col-major（每项一段连续 N 比特）与 AnyFIM 现有位图存储**天然一致，零拷贝映射**。
-5. 全 1 数据会掩盖布局错误——正确性验证必须用稀疏随机数据 + CPU 参考三方对照。
-6. 分块版要求 b、d 为 64 的倍数（tile 对齐），不足需填充——对应备忘录的"填充位补 0 不影响计数"。
-7. **含 `__syncthreads` 的分块内核不能按行提前 `return`**：b 非 64 倍数时退出的 warp 不再参与块内
-   同步，属未定义行为，会静默产出错误结果。必须全员走完同步，仅在 store 时按行屏蔽
-   （已在 2026-09-23 修入源码；攒批原型在 b=585 时实测踩中此坑）。
+1. **The `ldm` unit of b1 fragments is bits**, not 32-bit words (must be a multiple of 128); this project pads N to a multiple of 4096 bits throughout.
+2. **`bmma_sync` defaults to XOR** as the bit operation — you must explicitly pass `wmma::experimental::bmmaBitOpAND` + `bmmaAccumulateOpPOPC`.
+3. The b1 load/store API is `load_matrix_sync` / `store_matrix_sync` (not `load_matrix`).
+4. Column-major B (one contiguous N-bit segment per item) **maps zero-copy** onto AnyFIM's existing bitmap storage.
+5. All-ones data masks layout bugs — correctness validation must use sparse random data with a three-way CPU reference check.
+6. The tiled kernel requires b and d to be multiples of 64 (tile alignment); pad otherwise — padded bits are 0 and do not affect counts.
+7. **A tiled kernel containing `__syncthreads` must not `return` early per row**: with b not a multiple of 64, the exited warps no longer participate in block synchronization — undefined behavior that silently produces wrong results. All threads must reach every sync point; mask rows only at store time (fixed in the source on 2026-09-23; the batching prototype hit this bug in practice at b = 585).
 
-## 复现
+## Reproduce
 
 ```
-build.bat            # 自动调 vcvars64 + nvcc -O3 -arch=sm_86
-bmma_bench.exe       # 正确性门禁 + 内置扫描
-bmma_bench.exe N d b # 单配置（交叉对照）
+build.bat            # invokes vcvars64 + nvcc -O3 -arch=sm_86
+bmma_bench.exe       # correctness gate + built-in sweep
+bmma_bench.exe N d b # single configuration (cross-check)
 ```
-
-## 下一步（对应交接说明第 2 步）
-
-- 生产内核：v1/v2 按 B 大小自适应分流 + cp.async 双缓冲流水（可选，冲 80+ Tbit/s）
-- 攒批调度原型：分层收集候选 → 凑批 → BMMA 评估 → 批量阈值回退（批量不足走位图内核）
-- 千万级事务数据集物色/合成
